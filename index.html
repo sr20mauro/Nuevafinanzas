@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="App dinámica de control de gastos con categorías, gráfico de pastel a color e instalador PWA">
+  <meta name="description" content="App dinámica de control de gastos en pesos chilenos con gráfico de pastel a color e instalador PWA">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Gastos">
-  <title>Control de Gastos - Color Chart</title>
+  <meta name="apple-mobile-web-app-title" content="Mis Gastos">
+  <title>Control de Gastos - CLP</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/tailwindcss@3"></script>
@@ -21,7 +21,7 @@
   <!-- PWA Manifest Dinámico -->
   <script>
     const manifestData = {
-      name: "Control de Gastos",
+      name: "Control de Gastos CLP",
       short_name: "Gastos",
       start_url: "./",
       display: "standalone",
@@ -118,7 +118,7 @@
         <option value="11">Diciembre</option>
       </select>
       <select id="selectFilterYear" onchange="renderUI()" class="bg-zinc-900 text-zinc-200 text-xs px-2.5 py-1 rounded-lg border border-zinc-800 focus:outline-none focus:border-emerald-500">
-        <!-- Generado por JS -->
+        <!-- Generado dinámicamente -->
       </select>
     </div>
   </section>
@@ -145,7 +145,7 @@
     <div class="bg-zinc-950 border border-zinc-900 rounded-2xl p-4 flex flex-col items-center justify-center shadow-lg">
       <div class="flex justify-between items-center w-full mb-3 border-b border-zinc-900 pb-2">
         <h3 class="text-xs font-bold text-white tracking-wide uppercase flex items-center gap-2">
-          <i class="fa-solid fa-chart-pie text-emerald-400"></i> Distribución de Gastos
+          <i class="fa-solid fa-chart-pie text-emerald-400"></i> Gastos por Categoría
         </h3>
         <span id="txtGastosCount" class="text-[10px] text-zinc-500 font-medium">0 categorías</span>
       </div>
@@ -248,19 +248,19 @@
     </div>
   </div>
 
-  <!-- Lógica de la aplicación -->
+  <!-- Lógica JavaScript -->
   <script>
     const categories = {
       ingreso: ['Sueldo / Salario', 'Honorarios', 'Ventas / Negocio', 'Inversiones', 'Otros Ingresos'],
       gasto: ['Alimentación / Super', 'Vivienda / Arriendo', 'Servicios Básicos', 'Transporte / Bencina', 'Salud', 'Entretenimiento', 'Otros Gastos']
     };
 
-    // Paleta de colores vivos para el gráfico de pastel
+    // Paleta de colores vibrantes para el gráfico de pastel
     const colorPalette = [
       '#10b981', // Verde esmeralda
-      '#ef4444', // Rojo brillante
-      '#3b82f6', // Azul intenso
-      '#f59e0b', // Naranja / Ámbar
+      '#ef4444', // Rojo
+      '#3b82f6', // Azul
+      '#f59e0b', // Ámbar / Naranja
       '#8b5cf6', // Violeta
       '#06b6d4', // Cian
       '#ec4899', // Rosa
@@ -305,7 +305,7 @@
     }
 
     function loadLocalStorage() {
-      const saved = localStorage.getItem('control_gastos_color_clp');
+      const saved = localStorage.getItem('control_gastos_clp');
       const today = getTodayISO();
       if (saved) {
         try {
@@ -317,14 +317,14 @@
           { id: '2', type: 'gasto', name: 'Supermercado', category: 'Alimentación / Super', amount: 320000, date: today },
           { id: '3', type: 'gasto', name: 'Arriendo', category: 'Vivienda / Arriendo', amount: 450000, date: today },
           { id: '4', type: 'gasto', name: 'Bencina / Colectivo', category: 'Transporte / Bencina', amount: 75000, date: today },
-          { id: '5', type: 'gasto', name: 'Cine y Cenas', category: 'Entretenimiento', amount: 45000, date: today }
+          { id: '5', type: 'gasto', name: 'Cine y Salidas', category: 'Entretenimiento', amount: 45000, date: today }
         ];
         saveLocalStorage();
       }
     }
 
     function saveLocalStorage() {
-      localStorage.setItem('control_gastos_color_clp', JSON.stringify(transactions));
+      localStorage.setItem('control_gastos_clp', JSON.stringify(transactions));
     }
 
     function getFilteredTransactions() {
@@ -363,7 +363,7 @@
       });
 
       if (displayed.length === 0) {
-        listEl.innerHTML = `<div class="text-center py-8 text-zinc-600 text-xs">No hay movimientos registrados en este período.</div>`;
+        listEl.innerHTML = `<div class="text-center py-8 text-zinc-600 text-xs">No hay movimientos en este período.</div>`;
       } else {
         displayed.forEach(t => {
           const isIngreso = t.type === 'ingreso';
