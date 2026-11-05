@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="App dinámica de control de gastos con categorías, gráfico de pastel a color e instalador PWA">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Gastos">
+  <title>Control de Gastos - Color Chart</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/tailwindcss@3"></script>
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- PWA Manifest Dinámico -->
+  <script>
+    const manifestData = {
+      name: "Control de Gastos",
+      short_name: "Gastos",
+      start_url: "./",
+      display: "standalone",
+      background_color: "#000000",
+      theme_color: "#000000",
+      orientation: "portrait",
+      icons: [
+        {
+          src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23000000'/%3E%3Cpath d='M256 96c-88.4 0-160 71.6-160 160s71.6 160 160 160 160-71.6 160-160S344.4 96 256 96zm0 280c-66.3 0-120-53.7-120-120s53.7-120 120-120 120 53.7 120 120-53.7 120-120 120zm-20-170h40v30h-40zm0 50h40v70h-40z' fill='%2310b981'/%3E%3C/svg%3E",
+          sizes: "512x512",
+          type: "image/svg+xml",
+          purpose: "any maskable"
+        }
+      ]
+    };
+    const blobManifest = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
+    const linkManifest = document.createElement('link');
+    linkManifest.rel = 'manifest';
+    linkManifest.href = URL.createObjectURL(blobManifest);
+    document.head.appendChild(linkManifest);
+  </script>
+
+  <style>
+    body {
+      background-color: #000000;
+      color: #f3f4f6;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    input, select, textarea {
+      user-select: text;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #09090b;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #27272a;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans pb-20">
+
+  <!-- Header Minimalista -->
+  <header class="bg-black/90 backdrop-blur-md border-b border-zinc-900 sticky top-0 z-40 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-2.5">
+      <div class="bg-zinc-900 text-emerald-400 p-2 rounded-xl border border-zinc-800">
+        <i class="fa-solid fa-chart-pie text-sm"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-sm tracking-tight text-white">Control de Gastos</h1>
+        <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Pesos Chilenos (CLP)</p>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-2">
+      <!-- Botón de instalación PWA -->
+      <button id="btnInstallPWA" class="hidden bg-emerald-500 hover:bg-emerald-400 text-black font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+        <i class="fa-solid fa-download"></i>
+        <span>Instalar App</span>
+      </button>
+
+      <!-- Botón Respaldo -->
+      <button onclick="openBackupModal()" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 p-2 rounded-lg text-xs transition-all" title="Respaldo">
+        <i class="fa-solid fa-database"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Barra de Filtros de Período -->
+  <section class="bg-zinc-950 border-b border-zinc-900 px-4 py-2.5 flex items-center justify-between">
+    <div class="flex items-center gap-2 text-zinc-400 text-xs">
+      <i class="fa-regular fa-calendar text-emerald-400"></i>
+      <span class="font-medium">Período:</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <select id="selectFilterMonth" onchange="renderUI()" class="bg-zinc-900 text-zinc-200 text-xs px-2.5 py-1 rounded-lg border border-zinc-800 focus:outline-none focus:border-emerald-500">
+        <option value="all">Todo el año</option>
+        <option value="0">Enero</option>
+        <option value="1">Febrero</option>
+        <option value="2">Marzo</option>
+        <option value="3">Abril</option>
+        <option value="4">Mayo</option>
+        <option value="5">Junio</option>
+        <option value="6">Julio</option>
+        <option value="7">Agosto</option>
+        <option value="8">Septiembre</option>
+        <option value="9">Octubre</option>
+        <option value="10">Noviembre</option>
+        <option value="11">Diciembre</option>
+      </select>
+      <select id="selectFilterYear" onchange="renderUI()" class="bg-zinc-900 text-zinc-200 text-xs px-2.5 py-1 rounded-lg border border-zinc-800 focus:outline-none focus:border-emerald-500">
+        <!-- Generado por JS -->
+      </select>
+    </div>
+  </section>
+
+  <main class="flex-1 max-w-xl w-full mx-auto p-4 space-y-5">
+
+    <!-- Tarjetas Resumen -->
+    <div class="grid grid-cols-3 gap-2.5">
+      <div class="bg-zinc-950 border border-zinc-900 rounded-2xl p-3.5">
+        <p class="text-[10px] uppercase font-semibold text-emerald-500 mb-1">Ingresos</p>
+        <p id="txtTotalIngresos" class="text-xs sm:text-sm font-extrabold text-emerald-400">$0</p>
+      </div>
+      <div class="bg-zinc-950 border border-zinc-900 rounded-2xl p-3.5">
+        <p class="text-[10px] uppercase font-semibold text-rose-500 mb-1">Gastos</p>
+        <p id="txtTotalGastos" class="text-xs sm:text-sm font-extrabold text-rose-400">$0</p>
+      </div>
+      <div class="bg-zinc-950 border border-zinc-900 rounded-2xl p-3.5">
+        <p class="text-[10px] uppercase font-semibold text-zinc-400 mb-1">Balance</p>
+        <p id="txtBalanceNeto" class="text-xs sm:text-sm font-extrabold text-white">$0</p>
+      </div>
+    </div>
+
+    <!-- Gráfico de Pastel por Categoría a Color -->
+    <div class="bg-zinc-950 border border-zinc-900 rounded-2xl p-4 flex flex-col items-center justify-center shadow-lg">
+      <div class="flex justify-between items-center w-full mb-3 border-b border-zinc-900 pb-2">
+        <h3 class="text-xs font-bold text-white tracking-wide uppercase flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie text-emerald-400"></i> Distribución de Gastos
+        </h3>
+        <span id="txtGastosCount" class="text-[10px] text-zinc-500 font-medium">0 categorías</span>
+      </div>
+      <div class="w-full max-w-[230px] aspect-square flex items-center justify-center my-1">
+        <canvas id="chartCategorias"></canvas>
+      </div>
+    </div>
+
+    <!-- Botón Agregar Movimiento -->
+    <button onclick="openModal()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-xs transition-all active:scale-[0.99]">
+      <i class="fa-solid fa-plus text-sm"></i>
+      <span>Registrar Ingreso o Gasto</span>
+    </button>
+
+    <!-- Lista de Transacciones -->
+    <div class="space-y-3">
+      <div class="flex border-b border-zinc-900 pb-2 space-x-4">
+        <button id="tabAll" onclick="setFilter('all')" class="text-xs font-bold text-emerald-400 border-b-2 border-emerald-400 pb-1">Todos</button>
+        <button id="tabIngreso" onclick="setFilter('ingreso')" class="text-xs font-semibold text-zinc-500 hover:text-zinc-300 pb-1">Ingresos</button>
+        <button id="tabGasto" onclick="setFilter('gasto')" class="text-xs font-semibold text-zinc-500 hover:text-zinc-300 pb-1">Gastos</button>
+      </div>
+
+      <div id="listTransactions" class="space-y-2 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
+        <!-- Render dinámico -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal Formulario Movimiento -->
+  <div id="modalItem" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-zinc-950 border border-zinc-900 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-zinc-900 pb-3">
+        <h3 id="modalTitle" class="text-sm font-bold text-white">Nuevo Movimiento</h3>
+        <button onclick="closeModal()" class="text-zinc-500 hover:text-white"><i class="fa-solid fa-xmark text-sm"></i></button>
+      </div>
+
+      <form id="formTransaction" onsubmit="saveTransaction(event)" class="space-y-3.5">
+        <input type="hidden" id="transId">
+
+        <div>
+          <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Tipo</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="btnTypeIngreso" onclick="setType('ingreso')" class="py-2 rounded-xl text-xs font-bold border border-emerald-500/50 bg-emerald-500/10 text-emerald-400">Ingreso (+)</button>
+            <button type="button" id="btnTypeGasto" onclick="setType('gasto')" class="py-2 rounded-xl text-xs font-bold border border-zinc-800 text-zinc-500">Gasto (-)</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Descripción</label>
+          <input type="text" id="transName" required placeholder="Ej: Sueldo, Supermercado..." class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Categoría</label>
+            <select id="transCategory" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500">
+              <!-- Cargado dinámicamente -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Fecha</label>
+            <input type="date" id="transDate" required class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Monto (CLP)</label>
+          <div class="relative">
+            <span class="absolute left-3 top-2 text-zinc-500 text-xs font-bold">$</span>
+            <input type="number" id="transAmount" required min="1" step="1" placeholder="50000" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-7 pr-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end space-x-2 pt-2 border-t border-zinc-900">
+          <button type="button" onclick="closeModal()" class="px-3 py-2 text-xs text-zinc-400 hover:text-white font-semibold">Cancelar</button>
+          <button type="submit" class="bg-emerald-500 text-black font-bold px-4 py-2 rounded-xl text-xs shadow-md">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Respaldo -->
+  <div id="modalBackup" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-zinc-950 border border-zinc-900 rounded-2xl max-w-xs w-full p-5 space-y-3 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-zinc-900 pb-2">
+        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Copia de Seguridad</h3>
+        <button onclick="closeBackupModal()" class="text-zinc-500 hover:text-white"><i class="fa-solid fa-xmark text-sm"></i></button>
+      </div>
+      <p class="text-[11px] text-zinc-500">Exporta o importa tus registros en un archivo JSON.</p>
+      <div class="space-y-2 pt-1">
+        <button onclick="exportData()" class="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-semibold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-2">
+          <i class="fa-solid fa-download"></i> Descargar Respaldo JSON
+        </button>
+        <label class="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-semibold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer">
+          <i class="fa-solid fa-upload"></i> Restaurar desde JSON
+          <input type="file" accept=".json" onchange="importData(event)" class="hidden">
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lógica de la aplicación -->
+  <script>
+    const categories = {
+      ingreso: ['Sueldo / Salario', 'Honorarios', 'Ventas / Negocio', 'Inversiones', 'Otros Ingresos'],
+      gasto: ['Alimentación / Super', 'Vivienda / Arriendo', 'Servicios Básicos', 'Transporte / Bencina', 'Salud', 'Entretenimiento', 'Otros Gastos']
+    };
+
+    // Paleta de colores vivos para el gráfico de pastel
+    const colorPalette = [
+      '#10b981', // Verde esmeralda
+      '#ef4444', // Rojo brillante
+      '#3b82f6', // Azul intenso
+      '#f59e0b', // Naranja / Ámbar
+      '#8b5cf6', // Violeta
+      '#06b6d4', // Cian
+      '#ec4899', // Rosa
+      '#84cc16'  // Verde lima
+    ];
+
+    let transactions = [];
+    let currentFilter = 'all';
+    let selectedType = 'ingreso';
+    let chartInstance = null;
+
+    const formatCLP = (amount) => {
+      return new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        maximumFractionDigits: 0
+      }).format(amount);
+    };
+
+    const getTodayISO = () => new Date().toISOString().slice(0, 10);
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initYearSelector();
+      loadLocalStorage();
+      initChart();
+      renderUI();
+      registerServiceWorker();
+    });
+
+    function initYearSelector() {
+      const yearSelect = document.getElementById('selectFilterYear');
+      const currentYear = new Date().getFullYear();
+      yearSelect.innerHTML = '';
+      for (let y = currentYear - 3; y <= currentYear + 1; y++) {
+        const opt = document.createElement('option');
+        opt.value = y.toString();
+        opt.innerText = y.toString();
+        if (y === currentYear) opt.selected = true;
+        yearSelect.appendChild(opt);
+      }
+      document.getElementById('selectFilterMonth').value = new Date().getMonth().toString();
+    }
+
+    function loadLocalStorage() {
+      const saved = localStorage.getItem('control_gastos_color_clp');
+      const today = getTodayISO();
+      if (saved) {
+        try {
+          transactions = JSON.parse(saved);
+        } catch (e) { transactions = []; }
+      } else {
+        transactions = [
+          { id: '1', type: 'ingreso', name: 'Sueldo Mensual', category: 'Sueldo / Salario', amount: 1200000, date: today },
+          { id: '2', type: 'gasto', name: 'Supermercado', category: 'Alimentación / Super', amount: 320000, date: today },
+          { id: '3', type: 'gasto', name: 'Arriendo', category: 'Vivienda / Arriendo', amount: 450000, date: today },
+          { id: '4', type: 'gasto', name: 'Bencina / Colectivo', category: 'Transporte / Bencina', amount: 75000, date: today },
+          { id: '5', type: 'gasto', name: 'Cine y Cenas', category: 'Entretenimiento', amount: 45000, date: today }
+        ];
+        saveLocalStorage();
+      }
+    }
+
+    function saveLocalStorage() {
+      localStorage.setItem('control_gastos_color_clp', JSON.stringify(transactions));
+    }
+
+    function getFilteredTransactions() {
+      const m = document.getElementById('selectFilterMonth').value;
+      const y = document.getElementById('selectFilterYear').value;
+
+      return transactions.filter(t => {
+        if (!t.date) return true;
+        const [ty, tm] = t.date.split('-');
+        const matchYear = ty === y;
+        const matchMonth = m === 'all' || (parseInt(tm, 10) - 1) === parseInt(m, 10);
+        return matchYear && matchMonth;
+      });
+    }
+
+    function renderUI() {
+      const filtered = getFilteredTransactions();
+
+      const totalIngresos = filtered.filter(t => t.type === 'ingreso').reduce((a, b) => a + b.amount, 0);
+      const totalGastos = filtered.filter(t => t.type === 'gasto').reduce((a, b) => a + b.amount, 0);
+      const balance = totalIngresos - totalGastos;
+
+      document.getElementById('txtTotalIngresos').innerText = formatCLP(totalIngresos);
+      document.getElementById('txtTotalGastos').innerText = formatCLP(totalGastos);
+      const txtBalance = document.getElementById('txtBalanceNeto');
+      txtBalance.innerText = formatCLP(balance);
+      txtBalance.className = `text-xs sm:text-sm font-extrabold ${balance >= 0 ? 'text-white' : 'text-rose-400'}`;
+
+      // Renderizar Lista
+      const listEl = document.getElementById('listTransactions');
+      listEl.innerHTML = '';
+      
+      const displayed = filtered.filter(t => {
+        if (currentFilter === 'all') return true;
+        return t.type === currentFilter;
+      });
+
+      if (displayed.length === 0) {
+        listEl.innerHTML = `<div class="text-center py-8 text-zinc-600 text-xs">No hay movimientos registrados en este período.</div>`;
+      } else {
+        displayed.forEach(t => {
+          const isIngreso = t.type === 'ingreso';
+          const item = document.createElement('div');
+          item.className = 'bg-zinc-950 border border-zinc-900 rounded-xl p-3 flex items-center justify-between';
+          item.innerHTML = `
+            <div class="flex items-center space-x-2.5">
+              <div class="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs ${isIngreso ? 'text-emerald-400' : 'text-rose-400'}">
+                <i class="fa-solid ${isIngreso ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'}"></i>
+              </div>
+              <div>
+                <h4 class="font-semibold text-xs text-white leading-tight">${escapeHTML(t.name)}</h4>
+                <p class="text-[10px] text-zinc-500">${escapeHTML(t.category)} • ${t.date}</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-3">
+              <span class="font-bold text-xs ${isIngreso ? 'text-emerald-400' : 'text-rose-400'}">${isIngreso ? '+' : '-'}${formatCLP(t.amount)}</span>
+              <div class="flex items-center space-x-1 text-zinc-600">
+                <button onclick="editTransaction('${t.id}')" class="hover:text-white p-1 text-[11px]"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="deleteTransaction('${t.id}')" class="hover:text-rose-400 p-1 text-[11px]"><i class="fa-solid fa-trash-can"></i></button>
+              </div>
+            </div>
+          `;
+          listEl.appendChild(item);
+        });
+      }
+
+      updateChart(filtered);
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('chartCategorias').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            backgroundColor: colorPalette,
+            borderColor: '#000000',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: '#a1a1aa',
+                font: { size: 10, weight: '500' },
+                padding: 12
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateChart(filteredList) {
+      if (!chartInstance) return;
+      const gastosMap = {};
+      filteredList.filter(t => t.type === 'gasto').forEach(t => {
+        gastosMap[t.category] = (gastosMap[t.category] || 0) + t.amount;
+      });
+
+      const count = Object.keys(gastosMap).length;
+      document.getElementById('txtGastosCount').innerText = `${count} categorías`;
+
+      chartInstance.data.labels = Object.keys(gastosMap);
+      chartInstance.data.datasets[0].data = Object.values(gastosMap);
+      chartInstance.update();
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      ['all', 'ingreso', 'gasto'].forEach(f => {
+        const btn = document.getElementById(`tab${f.charAt(0).toUpperCase() + f.slice(1)}`);
+        if (f === filter) {
+          btn.className = 'text-xs font-bold text-emerald-400 border-b-2 border-emerald-400 pb-1';
+        } else {
+          btn.className = 'text-xs font-semibold text-zinc-500 hover:text-zinc-300 pb-1';
+        }
+      });
+      renderUI();
+    }
+
+    function openModal(id = null) {
+      document.getElementById('modalItem').classList.remove('hidden');
+      if (id) {
+        const t = transactions.find(x => x.id === id);
+        if (t) {
+          document.getElementById('modalTitle').innerText = 'Editar Movimiento';
+          document.getElementById('transId').value = t.id;
+          document.getElementById('transName').value = t.name;
+          document.getElementById('transAmount').value = t.amount;
+          document.getElementById('transDate').value = t.date || getTodayISO();
+          setType(t.type, t.category);
+        }
+      } else {
+        document.getElementById('modalTitle').innerText = 'Nuevo Movimiento';
+        document.getElementById('formTransaction').reset();
+        document.getElementById('transId').value = '';
+        document.getElementById('transDate').value = getTodayISO();
+        setType('ingreso');
+      }
+    }
+
+    function closeModal() { document.getElementById('modalItem').classList.add('hidden'); }
+
+    function setType(type, selectedCategory = null) {
+      selectedType = type;
+      const btnIng = document.getElementById('btnTypeIngreso');
+      const btnGas = document.getElementById('btnTypeGasto');
+
+      if (type === 'ingreso') {
+        btnIng.className = 'py-2 rounded-xl text-xs font-bold border border-emerald-500/50 bg-emerald-500/10 text-emerald-400';
+        btnGas.className = 'py-2 rounded-xl text-xs font-bold border border-zinc-800 text-zinc-500';
+      } else {
+        btnGas.className = 'py-2 rounded-xl text-xs font-bold border border-rose-500/50 bg-rose-500/10 text-rose-400';
+        btnIng.className = 'py-2 rounded-xl text-xs font-bold border border-zinc-800 text-zinc-500';
+      }
+
+      const selectCat = document.getElementById('transCategory');
+      selectCat.innerHTML = '';
+      categories[type].forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.innerText = cat;
+        if (selectedCategory && selectedCategory === cat) opt.selected = true;
+        selectCat.appendChild(opt);
+      });
+    }
+
+    function saveTransaction(e) {
+      e.preventDefault();
+      const id = document.getElementById('transId').value;
+      const name = document.getElementById('transName').value.trim();
+      const category = document.getElementById('transCategory').value;
+      const date = document.getElementById('transDate').value || getTodayISO();
+      const amount = parseInt(document.getElementById('transAmount').value, 10);
+
+      if (!name || isNaN(amount) || amount <= 0) return;
+
+      if (id) {
+        const index = transactions.findIndex(x => x.id === id);
+        if (index !== -1) transactions[index] = { id, type: selectedType, name, category, date, amount };
+      } else {
+        transactions.push({ id: Date.now().toString(), type: selectedType, name, category, date, amount });
+      }
+
+      saveLocalStorage();
+      renderUI();
+      closeModal();
+    }
+
+    function editTransaction(id) { openModal(id); }
+    function deleteTransaction(id) {
+      if (confirm('¿Eliminar este movimiento?')) {
+        transactions = transactions.filter(x => x.id !== id);
+        saveLocalStorage();
+        renderUI();
+      }
+    }
+
+    function openBackupModal() { document.getElementById('modalBackup').classList.remove('hidden'); }
+    function closeBackupModal() { document.getElementById('modalBackup').classList.add('hidden'); }
+
+    function exportData() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(transactions, null, 2));
+      const a = document.createElement('a');
+      a.setAttribute("href", dataStr);
+      a.setAttribute("download", `control_gastos_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    function importData(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const parsed = JSON.parse(evt.target.result);
+          if (Array.isArray(parsed)) {
+            transactions = parsed;
+            saveLocalStorage();
+            renderUI();
+            closeBackupModal();
+            alert('Datos importados correctamente.');
+          }
+        } catch (err) { alert('Archivo JSON inválido.'); }
+      };
+      reader.readAsText(file);
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    }
+
+    // Instalador PWA Automático
+    let deferredPrompt;
+    const btnInstall = document.getElementById('btnInstallPWA');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (btnInstall) btnInstall.classList.remove('hidden');
+    });
+
+    if (btnInstall) {
+      btnInstall.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') btnInstall.classList.add('hidden');
+          deferredPrompt = null;
+        }
+      });
+    }
+
+    function registerServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        const sw = `
+          self.addEventListener('install', (e) => self.skipWaiting());
+          self.addEventListener('activate', (e) => self.clients.claim());
+          self.addEventListener('fetch', (e) => {
+            e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+          });
+        `;
+        const blob = new Blob([sw], { type: 'text/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+      }
+    }
+  </script>
+</body>
+</html>
